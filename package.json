@@ -1,0 +1,13 @@
+{
+  "name": "flat-to-funded-copier",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Flat To Funded Copier: NinjaTrader remote trade copier relay, licence server and control panel",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
