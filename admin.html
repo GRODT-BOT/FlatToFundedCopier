@@ -82,6 +82,11 @@
   .chip .prot b{font-weight:700}
   .chip .prot .sl{color:var(--short-hi)}
   .chip .prot .tp{color:var(--long-hi)}
+  .chip.idle .qty{color:var(--faint)}
+  .chip .pend{font-family:var(--mono);font-size:11.5px;color:var(--dim);display:block;margin-top:5px;white-space:pre}
+  .chip .pend b{font-weight:700}
+  .chip .pend .sl{color:var(--short-hi)}
+  .chip .pend .tp{color:var(--long-hi)}
   .flat{font-family:var(--display);font-size:34px;font-weight:700;color:var(--faint);line-height:1.15}
   .flat small{font-family:var(--sans);font-size:13.5px;font-weight:400;color:var(--dim);display:block;margin-top:6px}
 
@@ -367,27 +372,43 @@ function render(s){
     $('mirrorLead').textContent = 'Your position';
     chips.innerHTML = '<div class="flat">flat<small>Nothing open, nothing mirrored</small></div>';
   } else {
-    $('mirrorLead').textContent = 'Mirroring now';
+    $('mirrorLead').textContent = pos.some(x => parseInt(x.split(':')[1], 10) !== 0) ? 'Mirroring now' : 'Pending orders';
     for (const p of pos){
-      // "MNQ 12-26:2:sl=24100.25:tp=24310.5" — sl / tp are optional
+      // "MNQ 12-26:2:sl=24100.25:tp=24310.5:o=B,S,2,24300.25,0"
+      // sl / tp are optional; each o= is a resting entry (side,type,qty,stop,limit)
       const f = p.split(':');
       if (f.length < 2) continue;
       const sym = f[0], q = parseInt(f[1], 10);
       let sl = '', tp = '';
+      const pend = [];
       for (const x of f.slice(2)){
         if (x.startsWith('sl=')) sl = x.slice(3);
         else if (x.startsWith('tp=')) tp = x.slice(3);
+        else if (x.startsWith('o=')){ const o = x.slice(2).split(','); if (o.length >= 5) pend.push(o); }
       }
       const d = document.createElement('div');
-      d.className = 'chip ' + (q > 0 ? 'long' : 'short');
+      d.className = 'chip ' + (q > 0 ? 'long' : q < 0 ? 'short' : 'idle');
       d.innerHTML = '<span class="sym"></span><span class="qty"></span><span class="prot"></span>';
       d.querySelector('.sym').textContent = sym;
-      d.querySelector('.qty').textContent = (q > 0 ? '+' : '') + q;
+      d.querySelector('.qty').textContent = q === 0 ? 'flat' : (q > 0 ? '+' : '') + q;
       const prot = d.querySelector('.prot');
       if (sl || tp){
         prot.innerHTML = (sl ? '<b class="sl">SL</b> ' + sl : '') + (sl && tp ? '  ' : '') + (tp ? '<b class="tp">TP</b> ' + tp : '');
-      } else {
+      } else if (q !== 0){
         prot.textContent = 'no stop / target';
+      } else {
+        prot.remove();
+      }
+      const kinds = { S:'STOP', SL:'STOP LIMIT', L:'LIMIT' };
+      for (const o of pend){
+        const line = document.createElement('span');
+        line.className = 'pend';
+        const side = document.createElement('b');
+        side.className = o[0] === 'B' ? 'tp' : 'sl';
+        side.textContent = o[0] === 'B' ? 'BUY' : 'SELL';
+        line.appendChild(side);
+        line.appendChild(document.createTextNode(' ' + (kinds[o[1]] || o[1]) + ' ' + o[2] + ' @ ' + (o[1] === 'L' ? o[4] : o[3])));
+        d.appendChild(line);
       }
       chips.appendChild(d);
     }
